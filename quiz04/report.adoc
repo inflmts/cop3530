@@ -1,0 +1,9 @@
+= Programming Quiz 4
+:source-highlighter: highlight.js
+
+image::screenshot.png[]
+
+[source,cpp]
+----
+include::imdbtree.cpp[]
+----
