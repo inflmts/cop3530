@@ -14,16 +14,18 @@ struct Command
 };
 
 std::initializer_list<Command> commands = {
-  { {"?", "help"}, Shell::execute_help },
-  { {"q", "quit"}, Shell::execute_quit },
-  { {"insert"}, Shell::execute_insert, "NAME ID" },
-  { {"remove"}, Shell::execute_remove, "ID" },
-  { {"search"}, Shell::execute_search, "ID|NAME" },
-  { {"printInorder"}, Shell::execute_inorder },
-  { {"printPreorder"}, Shell::execute_preorder },
-  { {"printPostorder"}, Shell::execute_postorder },
-  { {"printLevelCount"}, Shell::execute_height },
-  { {"removeInOrder"}, Shell::execute_remove_index, "N" }
+  { { "help", "h" }, Shell::execute_help },
+  { { "quit", "q" }, Shell::execute_quit },
+  { { "dump", "d" }, Shell::execute_dump },
+  { { "fill", "f" }, Shell::execute_fill },
+  { { "insert", "i" }, Shell::execute_insert, "NAME ID" },
+  { { "remove", "r" }, Shell::execute_remove, "ID" },
+  { { "search", "s" }, Shell::execute_search, "ID|NAME" },
+  { { "list", "l", "printInorder" }, Shell::execute_inorder },
+  { { "pre", "printPreorder" }, Shell::execute_preorder },
+  { { "post", "printPostorder" }, Shell::execute_postorder },
+  { { "height", "printLevelCount" }, Shell::execute_height },
+  { { "removeindex", "ri", "removeInorder" }, Shell::execute_remove_index, "N" }
 };
 
 static bool isnamechar(int c)
@@ -104,7 +106,7 @@ int Shell::execute(const char *s)
 
   for (auto& command : commands)
     for (const char *name : command.names)
-      if (cmd == name)
+    if (cmd == name)
         return (this->*command.fn)(s);
 
   return GAVL_INVALID_DIRECTIVE;
@@ -112,13 +114,9 @@ int Shell::execute(const char *s)
 
 int Shell::execute_help(const char *s)
 {
+  out << "Available commands:\n";
   for (auto& command : commands) {
-    bool first = true;
-    for (auto& name : command.names) {
-      if (first) first = false;
-      else out << "|";
-      out << name;
-    }
+    out << " " << *command.names.begin();
     if (command.usage)
       out << " " << command.usage;
     out << '\n';
@@ -129,6 +127,30 @@ int Shell::execute_help(const char *s)
 int Shell::execute_quit(const char *s)
 {
   return GAVL_QUIT;
+}
+
+int Shell::execute_dump(const char *s)
+{
+  avl::dump(tree, out);
+  return GAVL_DONE;
+}
+
+int Shell::execute_fill(const char *s)
+{
+  int count;
+  if (!parse_int(&s, &count))
+    return GAVL_INVALID_SYNTAX;
+  if (count > 1000)
+    return GAVL_FAILURE;
+  if (*s)
+    return GAVL_INVALID_SYNTAX;
+
+  for (int i = 0; i < count; i++) {
+    avl::insert(tree, rand() % 100000000, "test");
+    avl::dump(tree, out);
+    out << "\n";
+  }
+  return GAVL_SUCCESS;
 }
 
 int Shell::execute_insert(const char *s)
@@ -148,7 +170,7 @@ int Shell::execute_insert(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  return tree.insert(id, name) ? GAVL_SUCCESS : GAVL_FAILURE;
+  return avl::insert(tree, id, name) ? GAVL_SUCCESS : GAVL_FAILURE;
 }
 
 int Shell::execute_remove(const char *s)
@@ -159,7 +181,7 @@ int Shell::execute_remove(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  return tree.remove(id) ? GAVL_SUCCESS : GAVL_FAILURE;
+  return avl::remove(tree, id) ? GAVL_SUCCESS : GAVL_FAILURE;
 }
 
 int Shell::execute_search(const char *s)
@@ -178,7 +200,7 @@ int Shell::execute_search_id(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  avl::Node *node = tree.get(id);
+  avl *node = avl::get(tree, id);
   if (!node)
     return GAVL_FAILURE;
   out << node->name << "\n";
@@ -193,7 +215,7 @@ int Shell::execute_search_name(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  std::vector<avl::Node*> nodes = tree.search(name);
+  std::vector<avl*> nodes = avl::search(tree, name);
   if (nodes.empty())
     return GAVL_FAILURE;
 
@@ -217,19 +239,20 @@ int Shell::execute_postorder(const char *s)
   return execute_list(s, avl::postorder);
 }
 
-int Shell::execute_list(const char *s, void (*iter)(avl::Node*, avl::itercb))
+int Shell::execute_list(const char *s, std::vector<avl*> (*fn)(avl*))
 {
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
+  std::vector<avl*> nodes = fn(tree);
   bool first = true;
-  iter(tree.root(), [&] (avl::Node *node) {
+  for (avl*& node : nodes) {
     if (first)
       first = false;
     else
       out << ", ";
     out << node->name;
-  });
+  }
   out << "\n";
 
   return GAVL_DONE;
@@ -239,7 +262,7 @@ int Shell::execute_height(const char *s)
 {
   if (*s)
     return GAVL_INVALID_SYNTAX;
-  out << tree.height() << "\n";
+  out << avl::height(tree) << "\n";
   return GAVL_DONE;
 }
 
@@ -251,5 +274,5 @@ int Shell::execute_remove_index(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  return tree.remove_index(i) ? GAVL_SUCCESS : GAVL_FAILURE;
+  return avl::remove_index(tree, i) ? GAVL_SUCCESS : GAVL_FAILURE;
 }

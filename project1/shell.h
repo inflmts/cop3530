@@ -21,7 +21,7 @@ class Shell
     bool try_parse_limit(const char *s);
     int execute_search_id(const char *s);
     int execute_search_name(const char *s);
-    int execute_list(const char *s, void (*iter)(avl::Node*, avl::itercb));
+    int execute_list(const char *s, std::vector<avl*> (*fn)(avl*));
 
   public:
     avl::Tree tree;
@@ -33,6 +33,10 @@ class Shell
     int execute_help(const char *s);
     // quit
     int execute_quit(const char *s);
+    // dump
+    int execute_dump(const char *s);
+    // fill COUNT
+    int execute_fill(const char *s);
     // insert NAME ID
     int execute_insert(const char *s);
     // remove ID

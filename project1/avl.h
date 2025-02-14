@@ -1,83 +1,84 @@
 #ifndef AVL_H
 #define AVL_H
 
-#include <functional>
 #include <ostream>
 #include <string>
 #include <vector>
 
-namespace avl {
-
-class Node;
-class Tree;
-
-struct MatchSpec
-{
-  int id;
-  std::string name;
-  const MatchSpec *left;
-  const MatchSpec *right;
-  MatchSpec *p() { return this; }
-};
-
-bool match(Node *node, const MatchSpec *spec);
-
-typedef const std::function<void(Node*)>& itercb;
-void inorder(Node *root, itercb cb);
-void preorder(Node *root, itercb cb);
-void postorder(Node *root, itercb cb);
-
-class Node
+class avl
 {
   private:
-    friend class Tree;
-    Node **_slot;
-    Node *_left;
-    Node *_right;
-    unsigned int _h;
+    class Node;
+    Node *root;
 
-  public:
-    const int id;
-    const std::string name;
-
-  private:
-    Node(Node **slot, int id, const std::string& name);
-    ~Node();
+    void update_height();
     void rotate_left();
     void rotate_right();
     void balance();
-    Node *insert(int id, const std::string& name);
+    avl *detach_min();
+    void remove_index_impl(int& i);
 
   public:
-    friend bool match(Node *node, const MatchSpec *spec);
-    friend void inorder(Node *root, const itercb& cb);
-    friend void preorder(Node *root, const itercb& cb);
-    friend void postorder(Node *root, const itercb& cb);
-};
+    avl();
+    avl(int id, const std::string& name);
+    ~avl();
+    operator bool() { return root; }
+    Node *operator->() { return root; }
 
-class Tree
-{
-  private:
-    Node *_root;
-
-  public:
-    Tree();
-    ~Tree();
     unsigned int height();
-    void clear();
-    Node *insert(int id, const std::string& name);
+    avl *insert(int id, const std::string& name);
+    void remove();
     bool remove(int id);
     bool remove_index(int i);
-    Node *get(int id);
-    std::vector<Node*> search(const std::string& name);
+    void clear();
+    avl *get(int id);
+    std::vector<avl> search(const std::string& name);
+    void search(const std::string& name, std::vector<avl>& vec);
+    void dump(std::ostream& out);
+    void dump(std::ostream& out, std::string& prefix, const char *marks);
 
-    Node *root() { return _root; }
-    bool match(const MatchSpec *spec) { return avl::match(_root, spec); }
-    void inorder(itercb cb) { avl::inorder(_root, cb); }
-    void preorder(itercb cb) { avl::preorder(_root, cb); }
-    void postorder(itercb cb) { avl::postorder(_root, cb); }
+    std::vector<avl> inorder();
+    std::vector<avl> preorder();
+    std::vector<avl> postorder();
+    void inorder(std::vector<avl>& vec);
+    void preorder(std::vector<avl>& vec);
+    void postorder(std::vector<avl>& vec);
+
+    struct MatchSpec
+    {
+      const MatchSpec *left;
+      int id;
+      std::string name;
+      const MatchSpec *right;
+      operator MatchSpec *() { return this; }
+    };
+
+    bool match(const MatchSpec *spec);
 };
 
-} // namespace avl
+class avl::Node
+{
+  friend class avl;
+  avl _left;
+  avl _right;
+  unsigned int _h;
+  const int id;
+  const std::string name;
+  Node(int i, const std::string& nm) : id(i), name(nm) {}
+};
+
+inline void avl::update_height()
+{
+  root->_h = root->_left
+    ? (root->_right && root->_right->_h > root->_left->_h
+        ? root->_right->_h + 1
+        : root->_left->_h + 1)
+    : 0;
+}
+
+inline unsigned int avl::height()
+{
+  return root ? root->_h + 1 : 0;
+}
 
 #endif

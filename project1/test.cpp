@@ -4,10 +4,6 @@
 #include "avl.h"
 #include "shell.h"
 
-const std::uniform_int_distribution<unsigned int> dist(10000000, 99999999);
-std::mt19937 random;
-auto random_id = std::bind(dist, random);
-
 TEST_CASE("Rejects invalid commands") {
   Shell shell;
   REQUIRE(shell.execute("insert \"Arleen_\" 45679999") == GAVL_INVALID_SYNTAX);
@@ -18,30 +14,64 @@ TEST_CASE("Rejects invalid commands") {
 }
 
 TEST_CASE("Rotates correctly on insert") {
-  Shell shell;
+  avl::Tree tree;
+
   // left rotation
-  REQUIRE(shell.execute("insert \"William Perez\" 10003031") == GAVL_SUCCESS);
-  REQUIRE(shell.execute("insert \"Ben Burke\" 20003031") == GAVL_SUCCESS);
-  REQUIRE(shell.execute("insert \"Adrien Ozanne\" 30003031") == GAVL_SUCCESS);
-  REQUIRE(shell.tree.match(avl::MatchSpec
-    { 20003031, "Ben Burke",
-      avl::MatchSpec { 10003031, "William Perez" }.p(),
-      avl::MatchSpec { 30003031, "Adrien Ozanne" }.p()
-    }.p()
-  ));
+  REQUIRE(avl::insert(tree, 80001000, "William Perez"));
+  REQUIRE(avl::insert(tree, 80002000, "Ben Burke"));
+  REQUIRE(avl::insert(tree, 0xCDA3031, "Adrien Ozanne"));
+  REQUIRE(avl::match(shell.tree, avl::MatchSpec {
+    avl::MatchSpec { 80001000, "William Perez" },
+    80002000, "Ben Burke",
+    avl::MatchSpec { 0xCDA3031, "Adrien Ozanne" }
+  }));
+
+  // right rotation
+  REQUIRE(avl::insert(tree, 60007000, "Donald Trump"));
+  REQUIRE(avl::insert(tree, 50003530, "Cheryl Resch"));
+  REQUIRE(avl::match(shell.tree, avl::MatchSpec {
+    {
+      { 60007000, "Donald Trump" },
+      50003530, "Cheryl Resch",
+      { 80001000, "William Perez" }
+    },
+    80002000, "Ben Burke",
+    { 0xCDA3101, "Adrien Ozanne" }
+  }));
 }
 
 TEST_CASE("Handles many inserts and deletes") {
   avl::Tree tree;
-  for (int i = 0; i < 101; i++) {
-    tree.insert(random_id(), "test");
+  int nextid;
+  std::vector<avl*> vec;
+
+  // add 100 nodes
+  for (int i = 0; i < 10; i++) {
+    for (int j = 0; j < 10; j++) {
+      avl::insert(tree, 90 * i + 900 * j, "test");
+    }
   }
-  int previd = 0;
-  int count = 0;
-  tree.inorder([&] (avl::Node *node) {
-    REQUIRE(node->id > previd);
-    previd = node->id;
-    ++count;
-  });
-  REQUIRE(count == 101);
+  nextid = 0;
+  vec = avl::inorder(tree);
+  for (avl*& node : vec) {
+    if (node->id != nextid)
+      FAIL("You suck");
+    nextid += 90;
+  }
+  REQUIRE(nextid == 9000);
+
+  // delete 10 nodes
+  for (int w = 1; w <= 10; w++)
+    avl::remove(tree, w * 630);
+
+  nextid = 0;
+  vec = avl::inorder(tree);
+  for (avl*& node : vec) {
+    if (node->id != nextid)
+      FAIL("You suck more");
+    nextid += 90;
+    if (nextid % 630 == 0 && nextid <= 6300)
+      nextid += 90;
+  }
+  REQUIRE(nextid == 9000);
 }
