@@ -1,2 +1,4 @@
 subprojects/*
 !subprojects/*.wrap
+report/testing.html
+report/testing.pdf

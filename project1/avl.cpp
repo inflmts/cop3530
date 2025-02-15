@@ -1,15 +1,231 @@
 #include <iomanip>
 #include "avl.h"
 
-avl::avl() : root(nullptr) {}
-avl::avl(int id, const std::string& name) : root(new Node(id, name)) {}
-avl::~avl() { delete root; }
+namespace avl {
 
-void avl::rotate_left()
+/*******************************************************************************
+ * Tree
+ ******************************************************************************/
+
+Tree::Tree() : root(nullptr) {}
+
+Tree::~Tree()
 {
-  avl N = root;
-  avl R = N->_right;
-  avl Z = R->_left;
+  delete root;
+}
+
+unsigned int Tree::height()
+{
+  return root ? root->h + 1 : 0;
+}
+
+Node *Tree::insert(int id, const std::string& name)
+{
+  // this slot is available, put the new node here
+  if (!root)
+    return root = new Node(id, name);
+
+  // duplicate
+  if (id == root->id)
+    return nullptr;
+
+  Tree& child = id < root->id ? root->left : root->right;
+  unsigned int h = child.height();
+  // standard recursive BST insert
+  Node *node = child.insert(id, name);
+  // rebalance the tree if the child height changes
+  if (child.height() != h)
+    balance();
+  return node;
+}
+
+void Tree::remove()
+{
+  if (!root)
+    return;
+
+  Node *replace;
+  if (root->left) {
+    if (root->right) {
+      // fuck
+      replace = root->right.detach_min();
+      replace->left = root->left;
+      replace->right = root->right;
+    } else {
+      // left child only
+      replace = root->left;
+    }
+  } else if (root->right) {
+    // right child only
+    replace = root->right;
+  } else {
+    // poor childless leaf
+    replace = nullptr;
+  }
+  root->left = nullptr;
+  root->right = nullptr;
+  delete root;
+  root = replace;
+}
+
+bool Tree::remove(int id)
+{
+  // looking in the wrong place
+  if (!root)
+    return false;
+
+  // found it!
+  if (id == root->id) {
+    remove();
+    return true;
+  }
+
+  // standard recursive BST delete
+  Tree& child = id < root->id ? root->left : root->right;
+  return child.remove(id);
+}
+
+void Tree::remove_index_impl(int& i)
+{
+  if (root) {
+    root->left.remove_index_impl(i);
+    if (i == 0) return;
+    if (--i == 0) {
+      remove();
+      return;
+    }
+    root->right.remove_index_impl(i);
+  }
+}
+
+bool Tree::remove_index(int i)
+{
+  ++i;
+  Tree::remove_index_impl(i);
+  return i < 0;
+}
+
+void Tree::clear()
+{
+  delete root;
+  root = nullptr;
+}
+
+Node *Tree::get(int id)
+{
+  Node *node = root;
+  while (node) {
+    if (id == node->id)
+      return node;
+    else if (id < node->id)
+      node = node->left;
+    else
+      node = node->right;
+  }
+  return nullptr;
+}
+
+std::vector<Node*> Tree::search(const std::string& name)
+{
+  std::vector<Node*> vec;
+  search(name, vec);
+  return vec;
+}
+
+void Tree::search(const std::string& name, std::vector<Node*>& vec)
+{
+  if (root) {
+    root->left.search(name, vec);
+    if (name == root->name)
+      vec.push_back(root);
+    root->right.search(name, vec);
+  }
+}
+
+void Tree::dump(std::ostream& out)
+{
+  std::string prefix;
+  dump(out, prefix, "    --");
+}
+
+void Tree::dump(std::ostream& out, std::string& prefix, const char *ch)
+{
+  if (!root)
+    return;
+
+  if (root->left) {
+    prefix.append(ch, 2);
+    root->left.dump(out, prefix, "  | ,-");
+    prefix.resize(prefix.size() - 2);
+  }
+  out << prefix << ch + 4
+      << std::setw(8) << std::setfill('0') << root->id
+      << " " << root->name << " [" << root->h << "]\n";
+  if (root->right) {
+    prefix.append(ch + 2, 2);
+    root->right.dump(out, prefix, "|   `-");
+    prefix.resize(prefix.size() - 2);
+  }
+}
+
+// Iteration
+
+std::vector<Node*> Tree::inorder()
+{
+  std::vector<Node*> vec;
+  inorder(vec);
+  return vec;
+}
+
+std::vector<Node*> Tree::preorder()
+{
+  std::vector<Node*> vec;
+  preorder(vec);
+  return vec;
+}
+
+std::vector<Node*> Tree::postorder()
+{
+  std::vector<Node*> vec;
+  postorder(vec);
+  return vec;
+}
+
+void Tree::inorder(std::vector<Node*>& vec)
+{
+  // LRN
+  if (root) {
+    root->left.inorder(vec);
+    vec.push_back(root);
+    root->right.inorder(vec);
+  }
+}
+
+void Tree::preorder(std::vector<Node*>& vec)
+{
+  // NLR
+  if (root) {
+    vec.push_back(root);
+    root->left.preorder(vec);
+    root->right.preorder(vec);
+  }
+}
+
+void Tree::postorder(std::vector<Node*>& vec)
+{
+  // LRN
+  if (root) {
+    root->left.postorder(vec);
+    root->right.postorder(vec);
+    vec.push_back(root);
+  }
+}
+
+void Tree::rotate_left()
+{
+  Node *N = root;
+  Node *R = N->right;
+  Node *Z = R->left;
   /**********
   *  [N]    *
   *     R   *
@@ -21,281 +237,91 @@ void avl::rotate_left()
   *    [R]  *
   *   Z     *
   **********/
-  N->_right = Z;
+  N->right = Z;
   /**********
   *   N     *
   *     Z   *
   **********/
-  R->_left = N;
+  R->left = N;
   /**********
   *    [R]  *
   *   N     *
   *     Z   *
   **********/
-  update_height(N);
-  update_height(R);
+  N->update_height();
+  R->update_height();
 }
 
-void avl::rotate_right()
+void Tree::rotate_right()
 {
-  avl N = root;
-  avl L = N->_left;
-  avl Z = L->_right;
+  Node *N = root;
+  Node *L = N->left;
+  Node *Z = L->right;
   root = L;
-  N->_left = Z;
-  L->_right = N;
-  update_height(N);
-  update_height(L);
+  N->left = Z;
+  L->right = N;
+  N->update_height();
+  L->update_height();
 }
 
-void avl::balance()
+void Tree::balance()
 {
-  avl L = root->_left;
-  avl R = root->_right;
-  unsigned int lh = L ? L->_h + 1 : 0;
-  unsigned int rh = R ? R->_h + 1 : 0;
-  int bf = static_cast<int>(lh) - rh;
+  Tree& L = root->left;
+  Tree& R = root->right;
+  unsigned int lh = L.height();
+  unsigned int rh = R.height();
+  int bf = (int)(lh) - rh;
   if (bf > 0) {
-    root->_h = lh;
+    root->h = lh;
     if (bf > 1) {
       // left-heavy, rotate right
-      int lbf = (L->_left ? L->_left->_h + 1 : 0)
-              - (L->_right ? L->_right->_h + 1 : 0);
+      int lbf = L->left.height() - L->right.height();
       if (lbf < 0)
-        rotate_left(root->_left);
-      rotate_right(root);
+        L.rotate_left();
+      rotate_right();
     }
   } else {
-    root->_h = rh;
+    root->h = rh;
     if (bf < -1) {
       // right-heavy, rotate left
-      int rbf = (R->_left ? R->_left->_h + 1 : 0)
-              - (R->_right ? R->_right->_h + 1 : 0);
+      int rbf = R->left.height() - R->right.height();
       if (rbf > 0)
-        rotate_right(root->_right);
-      rotate_left(root);
+        R.rotate_right();
+      rotate_left();
     }
   }
 }
 
-avl avl::detach_min()
+Node *Tree::detach_min()
 {
-  avl node;
-  if (!root->_left) {
+  Node *node;
+  if (!root->left) {
     node = root;
-    root = node->_right;
-    node->_right = nullptr;
+    root = node->right;
+    node->right = nullptr;
     return node;
   }
-  unsigned int h = root->_left->_h;
-  node = detach_min(root->_left);
+  unsigned int h = root->left->h;
+  node = root->left.detach_min();
   // rebalance tree if child height changes
-  if (!root->_left || root->_left->_h != h)
-    balance(root);
+  if (root->left.height() != h)
+    balance();
   return node;
 }
 
-avl avl::insert(int id, const std::string& name)
+/*******************************************************************************
+ * Node
+ ******************************************************************************/
+
+Node::Node(int _id, const std::string& _name) :
+  h(0),
+  id(_id),
+  name(_name)
+{}
+
+void Node::update_height()
 {
-  // this slot is available, put the new node here
-  if (!root)
-    return root = new avl(id, name);
-
-  // duplicate
-  if (id == root->id)
-    return nullptr;
-
-  avl &child = id < root->id ? root->_left : root->_right;
-  unsigned int h = height(child);
-  // standard recursive BST insert
-  avl newnode = insert(child, id, name);
-  // rebalance the tree if the child height changes
-  if (height(child) != h)
-    balance(root);
-  return newnode;
+  h = left ? (right && right->h > left->h ? right->h + 1 : left->h + 1) : 0;
 }
 
-void avl::remove()
-{
-  if (!root)
-    return;
-
-  avl replace;
-  if (root->_left) {
-    if (root->_right) {
-      // fuck
-      replace = detach_min(root->_right);
-      replace->_left = root->_left;
-      replace->_right = root->_right;
-    } else {
-      // left child only
-      replace = root->_left;
-    }
-  } else if (root->_right) {
-    // right child only
-    replace = root->_right;
-  } else {
-    // poor childless leaf
-    replace = nullptr;
-  }
-  root->_left = nullptr;
-  root->_right = nullptr;
-  delete root;
-  root = replace;
-}
-
-bool avl::remove(int id)
-{
-  // looking in the wrong place
-  if (!root)
-    return false;
-
-  // found it!
-  if (id == root->id) {
-    remove(root);
-    return true;
-  }
-
-  // standard recursive BST delete
-  avl &child = id < root->id ? root->_left : root->_right;
-  return remove(child, id);
-}
-
-void avl::remove_index_impl(int& i)
-{
-  if (root) {
-    remove_index_impl(root->_left, i);
-    if (i == 0) return;
-    if (--i == 0) {
-      remove(root);
-      return;
-    }
-    remove_index_impl(root->_right, i);
-  }
-}
-
-bool avl::remove_index(int i)
-{
-  ++i;
-  avl::remove_index_impl(root, i);
-  return i < 0;
-}
-
-void avl::clear()
-{
-  delete root;
-  root = nullptr;
-}
-
-avl avl::get(avl node, int id)
-{
-  while (node) {
-    if (id == node->id)
-      return node;
-    else if (id < node->id)
-      node = node->_left;
-    else
-      node = node->_right;
-  }
-  return nullptr;
-}
-
-std::vector<avl> avl::search(avl node, const std::string& name)
-{
-  std::vector<avl> vec;
-  search(node, name, vec);
-  return vec;
-}
-
-void avl::search(avl node, const std::string& name, std::vector<avl>& vec)
-{
-  if (node) {
-    search(node->_left, name, vec);
-    if (node->name == name)
-      vec.push_back(node);
-    search(node->_right, name, vec);
-  }
-}
-
-void avl::dump(avl node, std::ostream& out)
-{
-  std::string prefix;
-  dump(node, out, prefix, "    --");
-}
-
-void avl::dump(avl node, std::ostream& out, std::string& prefix, const char *ch)
-{
-  if (node) {
-    prefix.append(ch, 2);
-    dump(node->_left, out, prefix, "  | ,-");
-    prefix.resize(prefix.size() - 2);
-    out << prefix << ch + 4
-        << std::setw(8) << std::setfill('0') << node->id
-        << " " << node->name << " [" << node->_h << "]\n";
-    prefix.append(ch + 2, 2);
-    dump(node->_right, out, prefix, "|   `-");
-    prefix.resize(prefix.size() - 2);
-  }
-}
-
-std::vector<avl> avl::inorder()
-{
-  std::vector<avl> vec;
-  avl::inorder(root, vec);
-  return vec;
-}
-
-std::vector<avl> avl::preorder()
-{
-  std::vector<avl> vec;
-  avl::preorder(root, vec);
-  return vec;
-}
-
-std::vector<avl> avl::postorder()
-{
-  std::vector<avl> vec;
-  avl::postorder(root, vec);
-  return vec;
-}
-
-void avl::inorder(std::vector<avl>& vec)
-{
-  // LRN
-  if (root) {
-    inorder(root->_left, vec);
-    vec.push_back(root);
-    inorder(root->_right, vec);
-  }
-}
-
-void avl::preorder(std::vector<avl>& vec)
-{
-  // NLR
-  if (root) {
-    vec.push_back(root);
-    preorder(root->_left, vec);
-    preorder(root->_right, vec);
-  }
-}
-
-void avl::postorder(std::vector<avl>& vec)
-{
-  // LRN
-  if (root) {
-    postorder(root->_left, vec);
-    postorder(root->_right, vec);
-    vec.push_back(root);
-  }
-}
-
-bool avl::match(const MatchSpec *spec)
-{
-  return node
-    ? (spec &&
-        node->id == spec->id &&
-        node->name == spec->name &&
-        match(node->_left, spec->left) &&
-        match(node->_right, spec->right))
-    : !spec;
 }
