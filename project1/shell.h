@@ -21,7 +21,7 @@ class Shell
     bool try_parse_limit(const char *s);
     int execute_search_id(const char *s);
     int execute_search_name(const char *s);
-    int execute_list(const char *s, std::vector<avl*> (*fn)(avl*));
+    int execute_list(const char *s, std::vector<avl::Node*> (avl::Tree::*fn)());
 
   public:
     avl::Tree tree;

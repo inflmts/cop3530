@@ -131,7 +131,7 @@ int Shell::execute_quit(const char *s)
 
 int Shell::execute_dump(const char *s)
 {
-  avl::dump(tree, out);
+  tree.dump(out);
   return GAVL_DONE;
 }
 
@@ -146,9 +146,7 @@ int Shell::execute_fill(const char *s)
     return GAVL_INVALID_SYNTAX;
 
   for (int i = 0; i < count; i++) {
-    avl::insert(tree, rand() % 100000000, "test");
-    avl::dump(tree, out);
-    out << "\n";
+    tree.insert(rand() % 100000000, "test");
   }
   return GAVL_SUCCESS;
 }
@@ -170,7 +168,7 @@ int Shell::execute_insert(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  return avl::insert(tree, id, name) ? GAVL_SUCCESS : GAVL_FAILURE;
+  return tree.insert(id, name) ? GAVL_SUCCESS : GAVL_FAILURE;
 }
 
 int Shell::execute_remove(const char *s)
@@ -181,7 +179,7 @@ int Shell::execute_remove(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  return avl::remove(tree, id) ? GAVL_SUCCESS : GAVL_FAILURE;
+  return tree.remove(id) ? GAVL_SUCCESS : GAVL_FAILURE;
 }
 
 int Shell::execute_search(const char *s)
@@ -200,7 +198,7 @@ int Shell::execute_search_id(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  avl *node = avl::get(tree, id);
+  avl::Node *node = tree.get(id);
   if (!node)
     return GAVL_FAILURE;
   out << node->name << "\n";
@@ -215,7 +213,7 @@ int Shell::execute_search_name(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  std::vector<avl*> nodes = avl::search(tree, name);
+  std::vector<avl::Node*> nodes = tree.search(name);
   if (nodes.empty())
     return GAVL_FAILURE;
 
@@ -226,27 +224,27 @@ int Shell::execute_search_name(const char *s)
 
 int Shell::execute_inorder(const char *s)
 {
-  return execute_list(s, avl::inorder);
+  return execute_list(s, avl::Tree::inorder);
 }
 
 int Shell::execute_preorder(const char *s)
 {
-  return execute_list(s, avl::preorder);
+  return execute_list(s, avl::Tree::preorder);
 }
 
 int Shell::execute_postorder(const char *s)
 {
-  return execute_list(s, avl::postorder);
+  return execute_list(s, avl::Tree::postorder);
 }
 
-int Shell::execute_list(const char *s, std::vector<avl*> (*fn)(avl*))
+int Shell::execute_list(const char *s, std::vector<avl::Node*> (avl::Tree::*fn)())
 {
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  std::vector<avl*> nodes = fn(tree);
+  std::vector<avl::Node*> nodes = (tree.*fn)();
   bool first = true;
-  for (avl*& node : nodes) {
+  for (auto& node : nodes) {
     if (first)
       first = false;
     else
@@ -262,7 +260,7 @@ int Shell::execute_height(const char *s)
 {
   if (*s)
     return GAVL_INVALID_SYNTAX;
-  out << avl::height(tree) << "\n";
+  out << tree.height() << "\n";
   return GAVL_DONE;
 }
 
@@ -274,5 +272,5 @@ int Shell::execute_remove_index(const char *s)
   if (*s)
     return GAVL_INVALID_SYNTAX;
 
-  return avl::remove_index(tree, i) ? GAVL_SUCCESS : GAVL_FAILURE;
+  return tree.remove_index(i) ? GAVL_SUCCESS : GAVL_FAILURE;
 }
