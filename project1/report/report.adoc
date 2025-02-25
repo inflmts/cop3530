@@ -1,0 +1,88 @@
+///////////////////////////////////////////////////////////////////////////////
+  Project 1: Gator AVL
+-------------------------------------------------------------------------------
+
+  shell.cpp
+  Author: Daniel Li
+  Date: Feb 24 2025
+
+  Documentation [12 Points]
+  Submit a document addressing these prompts:
+
+///////////////////////////////////////////////////////////////////////////////
+
+= Project 1: Gator AVL
+Daniel Li
+
+*_What is the time complexity of each method (corresponding to a command) in
+your implementation? Reflect on the worst-case time complexity represented in
+Big O notation._*
+
+*_Note that the methods here refer to the methods you call for the respective
+commands. You don't need to analyze the time complexities of helper
+methods, constructors, etc.. However, you must account for helper methods'
+time complexities when you analyze a command that calls those helper
+functions. [10 points]_*
+
+* `avl::Tree::insert` (`insert`)
++
+*O(log n)*, where _n_ is the number of nodes in the tree. Insertion involves
+recursing down the tree, looking for a place to insert the new node. The number
+of comparisons is proportional to the height of the tree, which is bounded at
+O(log n). Rebalancing involves recursing back up the tree, performing at most
+one O(1) rotation at each level, for a worst-case time proportional to the
+height of the tree, which is again O(log n). The overall time complexity is
+thus O(2 log n) = O(log n).
+
+* `avl::Tree::remove` (`remove`)
++
+*O(log n)*, where _n_ is the number of nodes in the tree. Removal is similar to
+insertion in that there are two steps: recursing down the tree and rebalancing
+back up the tree, both O(log n) operations. This gives an overall time
+complexity of O(2 log n) = O(log n).
+
+* `avl::Tree::get` (`search _ID_`)
++
+*O(log n)*, where _n_ is the number of nodes in the tree. This essentially
+performs the first half of the insertion algorithm, which is proportional to
+the height of the tree -- O(log n).
+
+* `avl::Tree::search` (`search _NAME_`)
++
+*O(nt)*, where _n_ is the number of nodes in the tree and _t_ is the length of
+the longest name. This function iterates through every node in the tree and
+checks to see if the node has the specified name. Each comparison takes O(t)
+time in the worst case.
+
+* `avl::Tree::inorder` (`printInorder`)
++
+*O(n)*, where _n_ is the number of nodes in the tree. The recursive function is
+called once for each node in the tree.
+
+* `avl::Tree::preorder` (`printPreorder`)
++
+*O(n)*, where _n_ is the number of nodes in the tree. This function is similar
+to `inorder`, but returns the results in a different order.
+
+* `avl::Tree::postorder` (`printPostorder`)
++
+*O(n)*, where _n_ is the number of nodes in the tree. This function is similar
+to `inorder`, but returns the results in a different order.
+
+* `avl::Tree::height` (`printLevelCount`)
++
+*O(1)*. This function is a simple property access on the root node.
+
+* `avl::Tree::remove_index` (`removeInorder`)
++
+*O(n)*, where _n_ is the number of nodes in the tree. Removing by index
+involves iterating the tree in order until the specified index is reached. In
+the worst case, this will iterate every node in the tree, for a total runtime
+of O(n).
+
+*_What did you learn from this assignment, and what would you do differently if
+you had to start over? [2 points]_*
+
+I learned that writing good test cases and building my application around
+testability is important. If I had to start over, I probably would write my
+test cases first.

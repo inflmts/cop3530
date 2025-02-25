@@ -1,4 +1,15 @@
+/******************************************************************************
+ *  Project 1: Gator AVL
+ ******************************************************************************
+ *
+ *  avl.cpp
+ *  Author: Daniel Li
+ *  Date: Feb 24 2025
+ *
+ *****************************************************************************/
+
 #include <iomanip>
+#include <limits.h>
 #include "avl.h"
 
 namespace avl {
@@ -7,16 +18,17 @@ namespace avl {
  * Tree
  ******************************************************************************/
 
-Tree::Tree() : root(nullptr) {}
+Tree::Tree() {}
+
+Tree::Tree(const Tree& other)
+{
+  if (other.root)
+    root = new Node(*other.root);
+}
 
 Tree::~Tree()
 {
   delete root;
-}
-
-unsigned int Tree::height()
-{
-  return root ? root->h + 1 : 0;
 }
 
 Node *Tree::insert(int id, const std::string& name)
@@ -39,10 +51,10 @@ Node *Tree::insert(int id, const std::string& name)
   return node;
 }
 
-void Tree::remove()
+bool Tree::pop()
 {
   if (!root)
-    return;
+    return false;
 
   Node *replace;
   if (root->left) {
@@ -66,6 +78,7 @@ void Tree::remove()
   root->right = nullptr;
   delete root;
   root = replace;
+  return true;
 }
 
 bool Tree::remove(int id)
@@ -76,7 +89,7 @@ bool Tree::remove(int id)
 
   // found it!
   if (id == root->id) {
-    remove();
+    pop();
     return true;
   }
 
@@ -91,7 +104,7 @@ void Tree::remove_index_impl(int& i)
     root->left.remove_index_impl(i);
     if (i == 0) return;
     if (--i == 0) {
-      remove();
+      pop();
       return;
     }
     root->right.remove_index_impl(i);
@@ -102,7 +115,7 @@ bool Tree::remove_index(int i)
 {
   ++i;
   Tree::remove_index_impl(i);
-  return i < 0;
+  return i == 0;
 }
 
 void Tree::clear()
@@ -142,13 +155,13 @@ void Tree::search(const std::string& name, std::vector<Node*>& vec)
   }
 }
 
-void Tree::dump(std::ostream& out)
+void Tree::dump(std::ostream& out) const
 {
   std::string prefix;
   dump(out, prefix, "    --");
 }
 
-void Tree::dump(std::ostream& out, std::string& prefix, const char *ch)
+void Tree::dump(std::ostream& out, std::string& prefix, const char *ch) const
 {
   if (!root)
     return;
@@ -166,6 +179,33 @@ void Tree::dump(std::ostream& out, std::string& prefix, const char *ch)
     root->right.dump(out, prefix, "|   `-");
     prefix.resize(prefix.size() - 2);
   }
+}
+
+bool Tree::check() const
+{
+  return check(INT_MIN, INT_MAX);
+}
+
+bool Tree::check(int min, int max) const
+{
+  if (!root)
+    return true;
+
+  unsigned int lh = root->left.height();
+  unsigned int rh = root->right.height();
+  return (root->id >= min && root->id <= max
+      && (lh > rh ? root->h == lh + 1 && lh - rh < 2
+                  : root->h == rh + 1 && rh - lh < 2)
+      && root->left.check(min, root->id - 1)
+      && root->right.check(root->id + 1, max));
+}
+
+bool Tree::identical(const Tree& other) const
+{
+  return !root ? !other.root :
+    root->id == other->id
+    && root->left.identical(other->left)
+    && root->right.identical(other->right);
 }
 
 // Iteration
@@ -272,7 +312,7 @@ void Tree::balance()
   unsigned int rh = R.height();
   int bf = (int)(lh) - rh;
   if (bf > 0) {
-    root->h = lh;
+    root->h = lh + 1;
     if (bf > 1) {
       // left-heavy, rotate right
       int lbf = L->left.height() - L->right.height();
@@ -281,7 +321,7 @@ void Tree::balance()
       rotate_right();
     }
   } else {
-    root->h = rh;
+    root->h = rh + 1;
     if (bf < -1) {
       // right-heavy, rotate left
       int rbf = R->left.height() - R->right.height();
@@ -314,14 +354,24 @@ Node *Tree::detach_min()
  ******************************************************************************/
 
 Node::Node(int _id, const std::string& _name) :
-  h(0),
+  h(1),
   id(_id),
   name(_name)
 {}
 
+Node::Node(const Node& other) :
+  left(other.left),
+  right(other.right),
+  h(other.h),
+  id(other.id),
+  name(other.name)
+{}
+
 void Node::update_height()
 {
-  h = left ? (right && right->h > left->h ? right->h + 1 : left->h + 1) : 0;
+  unsigned int lh = left.height();
+  unsigned int rh = right.height();
+  h = (lh > rh ? lh : rh) + 1;
 }
 
 }

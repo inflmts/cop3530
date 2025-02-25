@@ -1,4 +1,7 @@
+/dist
 subprojects/*
 !subprojects/*.wrap
 report/testing.html
 report/testing.pdf
+report/report.html
+report/report.pdf

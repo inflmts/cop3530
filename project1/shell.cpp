@@ -1,46 +1,31 @@
-#include <ctype.h>
-#include <initializer_list>
+/******************************************************************************
+ *  Project 1: Gator AVL
+ ******************************************************************************
+ *
+ *  shell.cpp
+ *  Author: Daniel Li
+ *  Date: Feb 24 2025
+ *
+ *****************************************************************************/
+
 #include <iomanip>
 #include <iostream>
-#include <stdlib.h>
 #include "avl.h"
 #include "shell.h"
 
-struct Command
-{
-  std::initializer_list<const char*> names;
-  int (Shell::*fn)(const char *s);
-  const char *usage;
-};
-
-std::initializer_list<Command> commands = {
-  { { "help", "h" }, Shell::execute_help },
-  { { "quit", "q" }, Shell::execute_quit },
-  { { "dump", "d" }, Shell::execute_dump },
-  { { "fill", "f" }, Shell::execute_fill },
-  { { "insert", "i" }, Shell::execute_insert, "NAME ID" },
-  { { "remove", "r" }, Shell::execute_remove, "ID" },
-  { { "search", "s" }, Shell::execute_search, "ID|NAME" },
-  { { "list", "l", "printInorder" }, Shell::execute_inorder },
-  { { "pre", "printPreorder" }, Shell::execute_preorder },
-  { { "post", "printPostorder" }, Shell::execute_postorder },
-  { { "height", "printLevelCount" }, Shell::execute_height },
-  { { "removeindex", "ri", "removeInorder" }, Shell::execute_remove_index, "N" }
-};
-
-static bool isnamechar(int c)
-{
-  return c == ' '
-      || (c >= 'A' && c <= 'Z')
-      || (c >= 'a' && c <= 'z');
-}
+#define ISSPACE(c) ((c) == ' ')
+#define ISDIGIT(c) ((c) >= '0' && (c) <= '9')
+#define ISUPPER(c) ((c) >= 'A' && (c) <= 'Z')
+#define ISLOWER(c) ((c) >= 'a' && (c) <= 'z')
+#define ISALPHA(c) (ISUPPER(c) || ISLOWER(c))
+#define ISNAME(c) ((c) == ' ' || ISALPHA(c))
 
 static bool parse_id(const char **p, int *idp)
 {
   const char *s = *p;
   int id = 0;
   for (int len = 0; len < 8; len++) {
-    if (!isdigit(*s))
+    if (!ISDIGIT(*s))
       return false;
     id = 10 * id + (*s - '0');
     ++s;
@@ -60,7 +45,7 @@ static bool parse_name(const char **p, std::string *namep)
   while (1) {
     if (s[len] == '"')
       break;
-    if (!isnamechar(s[len]))
+    if (!ISNAME(s[len]))
       return false;
     ++len;
   }
@@ -73,12 +58,12 @@ static bool parse_int(const char **p, int *np)
 {
   const char *s = *p;
   int n = 0;
-  if (!isdigit(*s))
+  if (!ISDIGIT(*s))
     return false;
   do {
     n = 10 * n + (*s - '0');
     ++s;
-  } while (isdigit(*s));
+  } while (ISDIGIT(*s));
   *p = s;
   *np = n;
   return true;
@@ -88,67 +73,69 @@ static bool parse_int(const char **p, int *np)
  * Shell
  ******************************************************************************/
 
-Shell::Shell() :
-  out(std::cout)
-{}
+Shell::Shell() : out(std::cout) {}
+Shell::Shell(std::ostream& _out) :  out(_out) {}
 
 int Shell::execute(const char *s)
 {
+  int status = execute_internal(s);
+  switch (status) {
+    case GAVL_DONE:
+      break;
+    case GAVL_SUCCESS:
+      out << "successful\n"; break;
+    default:
+      out << "unsuccessful\n";
+  }
+  if (limit && --limit == 0)
+    status |= GAVL_QUIT;
+  return status;
+}
+
+int Shell::execute_internal(const char *s)
+{
+  // compat: accept an integer to set the command limit
+  if (ISDIGIT(*s)) {
+    limit = *s - '0';
+    ++s;
+    while (*s) {
+      if (!ISDIGIT(*s))
+        return GAVL_INVALID_SYNTAX;
+      limit = limit * 10 + (*s - '0');
+      ++s;
+    }
+    ++limit;
+    return GAVL_DONE;
+  }
+
   const char *t = s;
   while (1) {
-    if (!*s || isspace(*s))
+    if (!*s || ISSPACE(*s))
       break;
     ++s;
   }
   std::string cmd(t, s - t);
-  while (isspace(*s))
+  while (ISSPACE(*s))
     ++s;
 
-  for (auto& command : commands)
-    for (const char *name : command.names)
-    if (cmd == name)
-        return (this->*command.fn)(s);
+  if (cmd == "insert")
+    return execute_insert(s);
+  if (cmd == "remove")
+    return execute_remove(s);
+  if (cmd == "search")
+    return execute_search(s);
+  if (cmd == "printInorder")
+    return execute_inorder(s);
+  if (cmd == "printPreorder")
+    return execute_preorder(s);
+  if (cmd == "printPostorder")
+    return execute_postorder(s);
+  if (cmd == "printLevelCount")
+    return execute_height(s);
+  if (cmd == "removeInorder")
+    return execute_remove_index(s);
 
   return GAVL_INVALID_DIRECTIVE;
-}
-
-int Shell::execute_help(const char *s)
-{
-  out << "Available commands:\n";
-  for (auto& command : commands) {
-    out << " " << *command.names.begin();
-    if (command.usage)
-      out << " " << command.usage;
-    out << '\n';
-  }
-  return GAVL_DONE;
-}
-
-int Shell::execute_quit(const char *s)
-{
-  return GAVL_QUIT;
-}
-
-int Shell::execute_dump(const char *s)
-{
-  tree.dump(out);
-  return GAVL_DONE;
-}
-
-int Shell::execute_fill(const char *s)
-{
-  int count;
-  if (!parse_int(&s, &count))
-    return GAVL_INVALID_SYNTAX;
-  if (count > 1000)
-    return GAVL_FAILURE;
-  if (*s)
-    return GAVL_INVALID_SYNTAX;
-
-  for (int i = 0; i < count; i++) {
-    tree.insert(rand() % 100000000, "test");
-  }
-  return GAVL_SUCCESS;
 }
 
 int Shell::execute_insert(const char *s)
@@ -224,25 +211,27 @@ int Shell::execute_search_name(const char *s)
 
 int Shell::execute_inorder(const char *s)
 {
-  return execute_list(s, avl::Tree::inorder);
+  if (*s)
+    return GAVL_INVALID_SYNTAX;
+  return list(tree.inorder());
 }
 
 int Shell::execute_preorder(const char *s)
 {
-  return execute_list(s, avl::Tree::preorder);
+  if (*s)
+    return GAVL_INVALID_SYNTAX;
+  return list(tree.preorder());
 }
 
 int Shell::execute_postorder(const char *s)
 {
-  return execute_list(s, avl::Tree::postorder);
-}
-
-int Shell::execute_list(const char *s, std::vector<avl::Node*> (avl::Tree::*fn)())
-{
   if (*s)
     return GAVL_INVALID_SYNTAX;
+  return list(tree.postorder());
+}
 
-  std::vector<avl::Node*> nodes = (tree.*fn)();
+int Shell::list(const std::vector<avl::Node*>& nodes)
+{
   bool first = true;
   for (auto& node : nodes) {
     if (first)
@@ -252,7 +241,6 @@ int Shell::execute_list(const char *s, std::vector<avl::Node*> (avl::Tree::*fn)(
     out << node->name;
   }
   out << "\n";
-
   return GAVL_DONE;
 }
 

@@ -1,3 +1,13 @@
+/******************************************************************************
+ *  Project 1: Gator AVL
+ ******************************************************************************
+ *
+ *  shell.h
+ *  Author: Daniel Li
+ *  Date: Feb 24 2025
+ *
+ *****************************************************************************/
+
 #ifndef SHELL_H
 #define SHELL_H
 
@@ -8,35 +18,31 @@ enum
 {
   GAVL_DONE,
   GAVL_SUCCESS,
-  GAVL_QUIT,
   GAVL_FAILURE,
   GAVL_INVALID_SYNTAX,
   GAVL_INVALID_DIRECTIVE
 };
 
+#define GAVL_RESULT 0x7f
+#define GAVL_QUIT 0x80
+
 class Shell
 {
   private:
     std::ostream& out;
-    bool try_parse_limit(const char *s);
+    unsigned int limit = 0;
+    int execute_internal(const char *s);
     int execute_search_id(const char *s);
     int execute_search_name(const char *s);
-    int execute_list(const char *s, std::vector<avl::Node*> (avl::Tree::*fn)());
+    int list(const std::vector<avl::Node*>& nodes);
 
   public:
     avl::Tree tree;
 
     Shell();
+    Shell(std::ostream& out);
 
     int execute(const char *s);
-    // help
-    int execute_help(const char *s);
-    // quit
-    int execute_quit(const char *s);
-    // dump
-    int execute_dump(const char *s);
-    // fill COUNT
-    int execute_fill(const char *s);
     // insert NAME ID
     int execute_insert(const char *s);
     // remove ID
