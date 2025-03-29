@@ -13,64 +13,38 @@
 #include <set>
 #include <unordered_set>
 
-class Page
+struct Page
 {
-  private:
-    float _old_rank;
-    float _rank;
-    int _outdegree;
-    const std::string _url;
-    std::unordered_set<Page*> _links;
-
-  public:
-    float rank() const { return _rank; }
-    const std::string& url() const { return _url; }
-    Page(const std::string& url) : _rank(0.0f), _outdegree(0), _url(url) {};
-    void add_link(Page *page);
-    friend void pagerank(const std::set<Page>& pages, int p);
+  float old_rank;
+  float rank;
+  const std::string url;
+  std::unordered_set<Page*> links;
+  Page(const std::string& _url) : url(_url) {}
 };
 
-void Page::add_link(Page *page)
-{
-  if (_links.emplace(page).second)
-    ++page->_outdegree;
-}
-
-bool operator<(const Page& lhs, const Page& rhs) { return lhs.url() < rhs.url(); }
-bool operator<(const Page& lhs, const std::string& rhs) { return lhs.url() < rhs; }
-bool operator<(const std::string& lhs, const Page& rhs) { return lhs < rhs.url(); }
+bool operator<(const Page& lhs, const Page& rhs) { return lhs.url < rhs.url; }
+bool operator<(const Page& lhs, const std::string& rhs) { return lhs.url < rhs; }
+bool operator<(const std::string& lhs, const Page& rhs) { return lhs < rhs.url; }
 
 void pagerank(const std::set<Page>& pages, int p)
 {
   // initialize ranks
   for (auto it = pages.begin(); it != pages.end(); it++)
-    const_cast<Page&>(*it)._rank = 1.0f / pages.size();
+    const_cast<Page&>(*it).rank = 1.0f / pages.size();
 
   while (--p) {
-    // save the old values of each rank
+    // save the current ranks and initialize to zero
     for (auto it = pages.begin(); it != pages.end(); it++) {
       Page& page = const_cast<Page&>(*it);
-      page._old_rank = page._rank;
+      page.old_rank = page.rank;
+      page.rank = 0.0f;
     }
     for (auto it = pages.begin(); it != pages.end(); it++) {
       Page& page = const_cast<Page&>(*it);
-      page._rank = 0.0f;
-      for (auto it = page._links.begin(); it != page._links.end(); it++) {
-        Page *src = *it;
-        page._rank += src->_old_rank / src->_outdegree;
-      }
+      for (auto di = page.links.begin(); di != page.links.end(); di++)
+        (*di)->rank += page.old_rank / page.links.size();
     }
   }
-}
-
-void pagerank_display(std::ostream& out, const std::set<Page>& pages)
-{
-  std::ios::fmtflags original_flags = out.flags(std::ios::fixed);
-  int original_precision = out.precision(2);
-  for (auto it = pages.begin(); it != pages.end(); it++)
-    out << it->url() << ' ' << it->rank() << '\n';
-  out.flags(original_flags);
-  out.precision(original_precision);
 }
 
 void pagerank_shell(std::istream& in, std::ostream& out)
@@ -85,10 +59,17 @@ void pagerank_shell(std::istream& in, std::ostream& out)
     in >> dest_url;
     Page& src = const_cast<Page&>(*pages.emplace(src_url).first);
     Page& dest = const_cast<Page&>(*pages.emplace(dest_url).first);
-    dest.add_link(&src);
+    src.links.emplace(&dest);
   }
+
   pagerank(pages, p);
-  pagerank_display(out, pages);
+
+  std::ios::fmtflags original_flags = out.flags(std::ios::fixed);
+  int original_precision = out.precision(2);
+  for (auto it = pages.begin(); it != pages.end(); it++)
+    out << it->url << ' ' << it->rank << '\n';
+  out.flags(original_flags);
+  out.precision(original_precision);
 }
 
 #ifndef PAGERANK_NO_MAIN

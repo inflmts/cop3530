@@ -6,8 +6,9 @@ catch2 = dependency('catch2-with-main')
 executable('p2', 'pagerank.cpp')
 executable('p2test', 'test.cpp', dependencies: catch2)
 
+maketest = find_program('maketest.sh')
 custom_target(
   output: 'test.md',
-  input: ['maketest.sh', 'test.cpp'],
-  command: ['sh', '@INPUT0@', '@INPUT1@', '@OUTPUT0@'],
+  input: 'test.cpp',
+  command: [maketest, '@INPUT0@', '@OUTPUT0@'],
   build_by_default: true)
