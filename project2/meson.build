@@ -10,5 +10,10 @@ maketest = find_program('maketest.sh')
 custom_target(
   output: 'test.md',
   input: 'test.cpp',
-  command: [maketest, '@INPUT0@', '@OUTPUT0@'],
-  build_by_default: true)
+  command: [maketest, '@INPUT0@', '@OUTPUT0@'])
+
+custom_target(
+  output: 'test.cpp',
+  input: 'test.cpp',
+  command: ['sed', 's|^|//|', '@INPUT0@'],
+  capture: true)
